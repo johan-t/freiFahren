@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+service HatespeechClassifier {
+        rpc Classify (ClassificationRequest) returns (ClassificationReply) {}
+    }
+
+message ClassificationRequest {
+         string text = 1;
+    }
+
+message ClassificationReply {
+         string label = 1;
+         float score = 2;
+    }
+

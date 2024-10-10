@@ -1,25 +1,32 @@
-from flask import Flask, request, jsonify
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
+import grpc
+import hatespeechfilter_pb2 as hatespeechfilter_pb2
+import hatespeechfilter_pb2_grpc as hatespeechfilter_pb2_grpc
 
-app = Flask(__name__)
+class HateSpeechFilterClient:
+    def __init__(self, host='localhost', port=50051):
+        self.channel = grpc.insecure_channel(f'{host}:{port}')
+        self.stub = hatespeechfilter_pb2_grpc.HatespeechClassifierStub(self.channel)
 
-tokenizer = AutoTokenizer.from_pretrained("chrisrtt/gbert-multi-class-german-hate")
-model = AutoModelForSequenceClassification.from_pretrained("chrisrtt/gbert-multi-class-german-hate")
-classifier = pipeline('sentiment-analysis', model=model, tokenizer=tokenizer)
+    def classify(self, text):
+        request = hatespeechfilter_pb2.ClassificationRequest(text=text)
+        response = self.stub.Classify(request)
+        return response.label, response.score
 
-@app.route('/classification', methods=['POST'])
-def classify_text():
-    data = request.get_json()
-    
-    if 'text' not in data:
-        return jsonify({"error": "No text provided"}), 400
-    
-    text = data['text']
-    
-    result = classifier(text)
-    
-    return jsonify(result)
+    def close(self):
+        self.channel.close()
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=9090)
+def main():
+    client = HateSpeechFilterClient()
     
+    try:
+        # Example usage
+        text_to_classify = "Fünf Kontrolleure an der S42, die sich nicht auf die Vorschriften einlassen"
+        label, score = client.classify(text_to_classify)
+        print(f"Text: {text_to_classify}")
+        print(f"Classification: {label}")
+        print(f"Confidence Score: {score}")
+    finally:
+        client.close()
+
+if __name__ == "__main__":
+    main()
